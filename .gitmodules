@@ -1,0 +1,3 @@
+[submodule "src/cyclops"]
+	path = src/cyclops
+	url = https://github.com/cyclops-double-blind/cyclops

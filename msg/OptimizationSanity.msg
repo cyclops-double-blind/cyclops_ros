@@ -1,0 +1,8 @@
+std_msgs/Header header
+
+float64 potential_cost
+float64 significant_probability
+
+float64 landmark_accept_rate
+float64 landmark_outlier_rate
+int64 landmark_observation_count

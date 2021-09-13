@@ -1,0 +1,4 @@
+bool acceptable
+
+float64 inlier_ratio
+float64 final_cost_significant_probability

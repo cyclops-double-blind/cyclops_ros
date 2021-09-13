@@ -1,0 +1,8 @@
+bool valid
+
+float64 final_cost_significant_probability
+float64 scale_log_deviation
+float64 gravity_max_deviation
+float64 bias_max_deviation
+float64 body_velocity_max_deviation
+float64 scale_symmetric_translation_error_max_deviation
