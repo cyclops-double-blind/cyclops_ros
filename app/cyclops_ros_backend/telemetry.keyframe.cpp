@@ -13,7 +13,7 @@ namespace cyclops {
   KeyframeTelemetryRos::~KeyframeTelemetryRos() = default;
 
   void KeyframeTelemetryRos::onNewMotionFrame(
-    on_new_motion_frame_argument_t const& argument) {
+    OnNewMotionFrame const& argument) {
     auto m = Keyframe();
     m.frame_id = argument.frame_id;
     m.timestamp.fromSec(argument.timestamp);

@@ -13,7 +13,7 @@
 #include <ros/ros.h>
 
 namespace cyclops {
-  static bool init_logger(ros::NodeHandle& pnode) {
+  static bool initLogger(ros::NodeHandle& pnode) {
     auto log_level = pnode.param<int>("log_level", 2);  // INFO by default
     auto log_path = pnode.param<std::string>("log_path", "");
 
@@ -21,10 +21,10 @@ namespace cyclops {
     ROS_ERROR_STREAM("logger path: " << log_path);
 
     if (log_path.empty()) {
-      ::cyclops::init_logger(log_level);
+      ::cyclops::initLogger(log_level);
     } else {
       ROS_INFO_STREAM("Setting cyclops log path to " << log_path);
-      ::cyclops::init_logger(log_path, log_level);
+      ::cyclops::initLogger(log_path, log_level);
     }
 
     auto ros_log_level = std::max<int>(0, log_level - 1);
@@ -44,10 +44,10 @@ namespace cyclops {
     ros::NodeHandle node;
     ros::NodeHandle pnode("~");
 
-    if (!init_logger(pnode))
+    if (!initLogger(pnode))
       return -1;
 
-    std::shared_ptr config = read_config(pnode);
+    std::shared_ptr config = readConfig(pnode);
     if (config == nullptr) {
       ROS_ERROR("failed to read cyclops configuration from rosparam");
       return -1;
@@ -60,7 +60,7 @@ namespace cyclops {
 
     srand(20220208);
 
-    std::shared_ptr cyclops_main = CyclopsMain::create({
+    std::shared_ptr cyclops_main = CyclopsMain::Create({
       .config = config->core_config,
       .seed = 20210914,
       .optimizer_telemetry = std::make_shared<OptimizerTelemetryRos>(pnode),

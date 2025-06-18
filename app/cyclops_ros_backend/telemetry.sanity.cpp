@@ -17,7 +17,7 @@ namespace cyclops {
   }
 
   void OptimizerTelemetryRos::onSanityStatistics(
-    sanity_statistics_t const& statistics) {
+    SanityStatistics const& statistics) {
     OptimizationSanity msg;
     msg.header.stamp = ros::Time::now();
     msg.potential_cost = statistics.final_cost;
@@ -30,7 +30,7 @@ namespace cyclops {
   }
 
   void OptimizerTelemetryRos::onSanityBad(
-    bad_reason_t reason, sanity_statistics_t const& statistics) {
+    BadReason reason, SanityStatistics const& statistics) {
     OptimizerTelemetry::onSanityBad(reason, statistics);
 
     std_msgs::Time msg;
@@ -39,7 +39,7 @@ namespace cyclops {
   }
 
   void OptimizerTelemetryRos::onSanityFailure(
-    failure_reason_t reason, sanity_statistics_t const& statistics) {
+    FailureReason reason, SanityStatistics const& statistics) {
     OptimizerTelemetry::onSanityFailure(reason, statistics);
 
     ROS_ERROR_STREAM(

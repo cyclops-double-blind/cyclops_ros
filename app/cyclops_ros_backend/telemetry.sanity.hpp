@@ -13,11 +13,10 @@ namespace cyclops {
   public:
     explicit OptimizerTelemetryRos(ros::NodeHandle& pnode);
 
-    void onSanityStatistics(sanity_statistics_t const&) override;
-
-    void onSanityBad(bad_reason_t reason, sanity_statistics_t const&) override;
+    void onSanityStatistics(SanityStatistics const& sanity) override;
+    void onSanityBad(BadReason reason, SanityStatistics const& sanity) override;
     void onSanityFailure(
-      failure_reason_t reason, sanity_statistics_t const&) override;
+      FailureReason reason, SanityStatistics const& sanity) override;
 
     void onUserResetRequest() override;
   };

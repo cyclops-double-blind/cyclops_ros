@@ -4,12 +4,12 @@
 #include <ros/node_handle.h>
 
 #define CYCLOPS_CONFIG_READ_FIELD(NS, CONFIG, FIELD) \
-  { ::cyclops::config::read_field(NS, #FIELD, (CONFIG).FIELD); }
+  { ::cyclops::config::readField(NS, #FIELD, (CONFIG).FIELD); }
 
-#define CYCLOPS_CONFIG_READ_OBJECT(NS, CONFIG, FIELD)         \
-  {                                                           \
-    auto FIELD_NS = ros::NodeHandle(NS, #FIELD);              \
-    ::cyclops::config::read_object(FIELD_NS, (CONFIG).FIELD); \
+#define CYCLOPS_CONFIG_READ_OBJECT(NS, CONFIG, FIELD)        \
+  {                                                          \
+    auto FIELD_NS = ros::NodeHandle(NS, #FIELD);             \
+    ::cyclops::config::readObject(FIELD_NS, (CONFIG).FIELD); \
   }
 
 namespace cyclops::config::sensors {
@@ -17,12 +17,12 @@ namespace cyclops::config::sensors {
   using std::optional;
 
   template <typename value_t>
-  struct failurable_t {
+  struct Failurable {
     bool failed;
     value_t& context;
 
     template <typename application_t>
-    failurable_t<value_t> next(application_t&& app) {
+    Failurable<value_t> next(application_t&& app) {
       if (failed)
         return {.failed = true, .context = context};
       if (!app(context))
@@ -31,12 +31,12 @@ namespace cyclops::config::sensors {
     }
   };
 
-  static optional<sensor_statistics_t> read_sensor_statistics_config(
+  static optional<SensorStatistics> readSensorStatisticsConfig(
     NodeHandle& pnode) {
     NodeHandle config_ns(pnode, "imu_noise");
 
-    sensor_statistics_t config = {0, 0, 0, 0, 0, 0};
-    auto failure = failurable_t<sensor_statistics_t> {
+    SensorStatistics config = {0, 0, 0, 0, 0, 0};
+    auto failure = Failurable<SensorStatistics> {
       .failed = false,
       .context = config,
     };
@@ -68,13 +68,13 @@ namespace cyclops::config::sensors {
     return config;
   }
 
-  static optional<sensor_extrinsics_t> read_sensor_extrinsics_config(
+  static optional<SensorExtrinsics> readSensorExtrinsicsConfig(
     NodeHandle& pnode) {
     NodeHandle config_ns(pnode, "extrinsic");
     NodeHandle transform_ns(config_ns, "imu_camera_transform");
 
-    sensor_extrinsics_t config = {};
-    auto failure = failurable_t<sensor_extrinsics_t> {
+    SensorExtrinsics config = {};
+    auto failure = Failurable<SensorExtrinsics> {
       .failed = false,
       .context = config,
     };
@@ -123,7 +123,7 @@ namespace cyclops::config {
   using ros::NodeHandle;
 
   template <typename value_t>
-  static void read_field(
+  static void readField(
     NodeHandle& ns, std::string const& field, value_t& value) {
     if (ns.getParam(field, value))
       return;
@@ -132,39 +132,39 @@ namespace cyclops::config {
     ROS_DEBUG_STREAM("Defaulting to: " << value);
   }
 
-  static void read_object(
-    NodeHandle& ns, measurement::keyframe_window_config_t& config) {
+  static void readObject(
+    NodeHandle& ns, measurement::KeyframeWindowConfig& config) {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, optimization_phase_max_keyframes);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, initialization_phase_max_keyframes);
   }
 
-  static void read_object(
-    NodeHandle& ns, measurement::image_update_throttling_config_t& config) {
+  static void readObject(
+    NodeHandle& ns, measurement::ImageUpdateThrottlingConfig& config) {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, update_rate_target);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, update_rate_smoothing_window_size);
   }
 
-  static void read_object(
-    NodeHandle& ns, initializer::vision::multiview_config_t& config) {
+  static void readObject(
+    NodeHandle& ns, initializer::vision::MultiViewConfig& config) {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, bundle_adjustment_max_iterations);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, bundle_adjustment_max_solver_time);
   }
 
-  static void read_object(
-    NodeHandle& ns, initializer::vision_solver_config_t& config) {
+  static void readObject(
+    NodeHandle& ns, initializer::VisionSolverConfig& config) {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, feature_point_isotropic_noise);
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, multiview);
   }
 
-  static void read_object(
-    NodeHandle& ns, initializer::imu::scale_sampling_config_t& config) {
+  static void readObject(
+    NodeHandle& ns, initializer::imu::ScaleSamplingConfig& config) {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, sampling_domain_lowerbound);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, sampling_domain_upperbound);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, samples_count);
   }
 
-  static void read_object(
-    NodeHandle& ns, initializer::imu::solution_acceptance_threshold_t& config) {
+  static void readObject(
+    NodeHandle& ns, initializer::imu::SolutionAcceptanceThreshold& config) {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, max_scale_log_deviation);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, max_normalized_gravity_deviation);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, max_normalized_velocity_deviation);
@@ -172,42 +172,39 @@ namespace cyclops::config {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, translation_match_min_p_value);
   }
 
-  static void read_object(
-    NodeHandle& ns, initializer::imu_solver_config_t& config) {
+  static void readObject(NodeHandle& ns, initializer::ImuSolverConfig& config) {
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, sampling);
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, acceptance_test);
   }
 
-  static void read_object(
-    NodeHandle& ns, initializer::initialization_config_t& config) {
+  static void readObject(
+    NodeHandle& ns, initializer::InitializationConfig& config) {
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, vision);
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, imu);
   }
 
-  static void read_object(
-    NodeHandle& ns, estimation::optimizer_config_t& config) {
+  static void readObject(NodeHandle& ns, estimation::OptimizerConfig& config) {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, max_num_iterations);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, max_solver_time_in_seconds);
   }
 
-  static void read_object(
-    NodeHandle& ns, estimation::fault_detection_threshold_t& config) {
+  static void readObject(
+    NodeHandle& ns, estimation::FaultDetectionThreshold& config) {
     CYCLOPS_CONFIG_READ_FIELD(ns, config, min_landmark_accept_rate);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, min_final_cost_p_value);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, max_landmark_update_failures);
     CYCLOPS_CONFIG_READ_FIELD(ns, config, max_final_cost_sanity_failures);
   }
 
-  static void read_object(
-    NodeHandle& ns, estimation::estimator_config_t& config) {
+  static void readObject(NodeHandle& ns, estimation::EstimatorConfig& config) {
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, optimizer);
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, fault_detection);
   }
 
-  static std::shared_ptr<cyclops_global_config_t const> read_core_config(
+  static std::shared_ptr<CyclopsConfig const> readCoreConfig(
     NodeHandle& pnode) {
-    auto maybe_noise = sensors::read_sensor_statistics_config(pnode);
-    auto maybe_extrinsic = sensors::read_sensor_extrinsics_config(pnode);
+    auto maybe_noise = sensors::readSensorStatisticsConfig(pnode);
+    auto maybe_extrinsic = sensors::readSensorExtrinsicsConfig(pnode);
 
     if (!maybe_noise) {
       ROS_ERROR("Failed to read sensor noise parameters");
@@ -219,8 +216,7 @@ namespace cyclops::config {
       return nullptr;
     }
 
-    auto config =
-      make_default_cyclops_global_config(*maybe_noise, *maybe_extrinsic);
+    auto config = CyclopsConfig::CreateDefault(*maybe_noise, *maybe_extrinsic);
 
     CYCLOPS_CONFIG_READ_OBJECT(pnode, *config, keyframe_window);
     CYCLOPS_CONFIG_READ_OBJECT(pnode, *config, update_throttling);
@@ -231,11 +227,10 @@ namespace cyclops::config {
 }  // namespace cyclops::config
 
 namespace cyclops {
-  std::unique_ptr<cyclops_ros_config_t const> read_config(
-    ros::NodeHandle& pnode) {
-    auto config = std::make_unique<cyclops_ros_config_t>();
+  std::unique_ptr<CyclopsRosConfig const> readConfig(ros::NodeHandle& pnode) {
+    auto config = std::make_unique<CyclopsRosConfig>();
 
-    auto core_config = ::cyclops::config::read_core_config(pnode);
+    auto core_config = ::cyclops::config::readCoreConfig(pnode);
     if (core_config == nullptr)
       return nullptr;
     config->core_config = std::move(core_config);

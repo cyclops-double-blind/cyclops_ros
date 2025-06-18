@@ -13,7 +13,7 @@ namespace cyclops {
   using geometry_msgs::Vector3Stamped;
   using sensor_msgs::PointCloud;
 
-  static auto make_pose_message(imu_motion_state_t const& pose) {
+  static auto makePoseMessage(ImuMotionState const& pose) {
     geometry_msgs::Pose result;
     result.position.x = pose.position.x();
     result.position.y = pose.position.y();
@@ -27,7 +27,7 @@ namespace cyclops {
     return result;
   }
 
-  static auto make_vector3_message(Eigen::Vector3d const& v) {
+  static auto makeVector3Message(Eigen::Vector3d const& v) {
     geometry_msgs::Vector3 result;
     result.x = v.x();
     result.y = v.y();
@@ -36,7 +36,7 @@ namespace cyclops {
   }
 
   RosPublisherContext::RosPublisherContext(
-    std::shared_ptr<cyclops_ros_config_t const> config)
+    std::shared_ptr<CyclopsRosConfig const> config)
       : _config(config) {
   }
 
@@ -53,25 +53,24 @@ namespace cyclops {
     _pointcloud_publisher = pnode.advertise<PointCloud>("pointcloud", 32);
   }
 
-  void RosPublisherContext::publishPropagation(
-    cyclops_propagation_state_t const& motion) {
+  void RosPublisherContext::publishPropagation(PropagationState const& motion) {
     auto const& [timestamp, state] = motion;
 
     auto pose_msg = geometry_msgs::PoseStamped();
     pose_msg.header.stamp.fromSec(timestamp);
     pose_msg.header.frame_id = _config->map_frame_id;
-    pose_msg.pose = make_pose_message(state);
+    pose_msg.pose = makePoseMessage(state);
     _propagation_pose_publisher.publish(pose_msg);
 
     auto velocity_msg = geometry_msgs::Vector3Stamped();
     velocity_msg.header.stamp.fromSec(timestamp);
     velocity_msg.header.frame_id = _config->map_frame_id;
-    velocity_msg.vector = make_vector3_message(state.velocity);
+    velocity_msg.vector = makeVector3Message(state.velocity);
     _propagation_velocity_publisher.publish(velocity_msg);
   }
 
   void RosPublisherContext::publishKeyframeState(
-    std::map<frame_id_t, cyclops_keyframe_state_t> const& motions) {
+    std::map<FrameID, KeyframeState> const& motions) {
     if (motions.empty())
       return;
     auto const& [_, last_keyframe] = *motions.rbegin();
@@ -84,18 +83,18 @@ namespace cyclops {
       msg.motions.emplace_back();
       msg.motions.back().frame_id = frame_id;
       msg.motions.back().timestamp.fromSec(motion.timestamp);
-      msg.motions.back().pose = make_pose_message(motion.motion_state);
+      msg.motions.back().pose = makePoseMessage(motion.motion_state);
       msg.motions.back().velocity =
-        make_vector3_message(motion.motion_state.velocity);
+        makeVector3Message(motion.motion_state.velocity);
       msg.motions.back().accelerometer_bias =
-        make_vector3_message(motion.acc_bias);
-      msg.motions.back().gyrometer_bias = make_vector3_message(motion.gyr_bias);
+        makeVector3Message(motion.acc_bias);
+      msg.motions.back().gyrometer_bias = makeVector3Message(motion.gyr_bias);
     }
     _keyframe_motions_publisher.publish(msg);
   }
 
   void RosPublisherContext::publishLandmarks(
-    landmark_positions_t const& landmarks) {
+    LandmarkPositions const& landmarks) {
     auto msg = boost::make_shared<sensor_msgs::PointCloud>();
     msg->header.frame_id = _config->map_frame_id;
     msg->points.reserve(landmarks.size());
@@ -114,7 +113,7 @@ namespace cyclops {
     _pointcloud_publisher.publish(msg);
   }
 
-  void RosPublisherContext::publishStart(timestamp_t timestamp) {
+  void RosPublisherContext::publishStart(Timestamp timestamp) {
     std_msgs::Time msg;
     msg.data.fromSec(timestamp);
     _start_publisher.publish(msg);

@@ -12,7 +12,6 @@ namespace cyclops {
     explicit KeyframeTelemetryRos(ros::NodeHandle& pnode);
     ~KeyframeTelemetryRos();
 
-    void onNewMotionFrame(
-      on_new_motion_frame_argument_t const& argument) override;
+    void onNewMotionFrame(OnNewMotionFrame const& argument) override;
   };
 }  // namespace cyclops

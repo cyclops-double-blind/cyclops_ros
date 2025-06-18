@@ -23,21 +23,20 @@ namespace cyclops {
   public:
     InitializerTelemetryRos(ros::NodeHandle& pnode);
 
-    void onVisionFailure(
-      vision_initialization_failure_t const& failure) override;
+    void onVisionFailure(VisionBootstrapFailure const& failure) override;
     void onBundleAdjustmentSanity(
-      bundle_adjustment_candidates_sanity_t const& sanity) override;
+      BundleAdjustmentCandidatesSanity const& sanity) override;
     void onBundleAdjustmentSuccess(
-      bundle_adjustment_solution_t const& solution) override;
+      BundleAdjustmentSolution const& solution) override;
 
-    void onIMUMatchAttempt(imu_match_attempt_t const& argument) override;
-    void onIMUMatchAmbiguity(imu_match_ambiguity_t const& argument) override;
+    void onImuMatchAttempt(ImuMatchAttempt const& argument) override;
+    void onImuMatchAmbiguity(ImuMatchAmbiguity const& argument) override;
 
-    void onIMUMatchAccept(imu_match_accept_t const& argument) override;
-    void onIMUMatchReject(imu_match_reject_t const& argument) override;
-    void onIMUMatchCandidateReject(imu_match_reject_t const& argument) override;
+    void onImuMatchAccept(ImuMatchAccept const& argument) override;
+    void onImuMatchReject(ImuMatchReject const& argument) override;
+    void onImuMatchCandidateReject(ImuMatchReject const& argument) override;
 
-    void onFailure(onfailure_argument_t const& argument) override;
-    void onSuccess(onsuccess_argument_t const& argument) override;
+    void onFailure(OnFailure const& argument) override;
+    void onSuccess(OnSuccess const& argument) override;
   };
 }  // namespace cyclops
