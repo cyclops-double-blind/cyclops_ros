@@ -173,6 +173,7 @@ namespace cyclops::config {
   }
 
   static void readObject(NodeHandle& ns, initializer::ImuSolverConfig& config) {
+    CYCLOPS_CONFIG_READ_FIELD(ns, config, imu_only);
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, sampling);
     CYCLOPS_CONFIG_READ_OBJECT(ns, config, acceptance_test);
   }
