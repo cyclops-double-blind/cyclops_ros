@@ -79,6 +79,7 @@ namespace cyclops {
       ASSIGN_FAILURE_REASON(BUNDLE_ADJUSTMENT_FAILED)
     }
 #undef ASSIGN_FAILURE_REASON
+    ROS_INFO_STREAM("Vision bootstrap failed. Reason: " << msg.reason_readable);
 
     _vision_failure_publisher.publish(msg);
   }
@@ -151,6 +152,8 @@ namespace cyclops {
 
   void InitializerTelemetryRos::onImuMatchAttempt(
     ImuMatchAttempt const& argument) {
+    ROS_INFO("IMU match attempt");
+
     auto msg = boost::make_shared<IMUMatchAttempt>();
     msg->degrees_of_freedom = argument.degrees_of_freedom;
     msg->frame_id =
@@ -227,6 +230,29 @@ namespace cyclops {
     }
 
     _ambiguity_publisher.publish(msg);
+
+    ROS_INFO_STREAM("IMU match ambiguity. Solutions:");
+    for (auto const& solution : argument.solutions)
+      ROS_INFO_STREAM("  s = " << solution.scale);
+
+    ROS_INFO_STREAM("Uncertainties:");
+    for (auto const& uncertainty : msg->uncertainty)
+      ROS_INFO_STREAM("  " << uncertainty);
+  }
+
+  template <typename reject_reason_t>
+  static auto rejectToString(reject_reason_t reason) {
+    switch (reason) {
+    case reject_reason_t::UNCERTAINTY_EVALUATION_FAILED:
+      return "UNCERTAINTY_EVALUATION_FAILED";
+    case reject_reason_t::COST_PROBABILITY_INSIGNIFICANT:
+      return "COST_PROBABILITY_INSIGNIFICANT";
+    case reject_reason_t::UNDERINFORMATIVE_PARAMETER:
+      return "UNDERINFORMATIVE_PARAMETER";
+    default:
+      return "Unspecified";
+    }
+    return "Unspecified";
   }
 
   template <typename reject_reason_t>
@@ -261,6 +287,8 @@ namespace cyclops {
     msg.reject_reason = makeRejectReasonMessage(argument.reason);
 
     _solution_reject_publisher.publish(msg);
+
+    ROS_INFO_STREAM("IMU match rejected: " << rejectToString(argument.reason));
   }
 
   void InitializerTelemetryRos::onImuMatchCandidateReject(
@@ -271,6 +299,11 @@ namespace cyclops {
     msg.reject_reason = makeRejectReasonMessage(argument.reason);
 
     _candidate_reject_publisher.publish(msg);
+
+    ROS_INFO_STREAM(
+      "IMU match candidate rejected: " << rejectToString(argument.reason));
+    ROS_INFO_STREAM("Scale: " << msg.solution.scale);
+    ROS_INFO_STREAM("Uncertainty: " << msg.uncertainty);
   }
 
   void InitializerTelemetryRos::onFailure(OnFailure const& argument) {
@@ -295,48 +328,35 @@ namespace cyclops {
       msg.imu_solutions.push_back(digest);
     }
 
-    if (argument.vision_solutions.empty()) {
-      msg.failure_reason = InitializationFailure::VISION_INITIALIZATION_FAILED;
-      msg.failure_reason_readable = "VISION_INITIALIZATION_FAILED";
-      _failure_publisher.publish(msg);
-      return;
-    }
+#define REPORT(REASON)                                                 \
+  {                                                                    \
+    msg.failure_reason = InitializationFailure::REASON;                \
+    msg.failure_reason_readable = #REASON;                             \
+    ROS_INFO_STREAM("IMU initialization failed. Reason: " << #REASON); \
+    _failure_publisher.publish(msg);                                   \
+    return;                                                            \
+  }
 
-    if (argument.imu_solutions.empty()) {
-      msg.failure_reason = InitializationFailure::NO_IMU_MATCH_CANDIDATE;
-      msg.failure_reason_readable = "NO_IMU_MATCH_CANDIDATE";
-      _failure_publisher.publish(msg);
-      return;
-    }
+    if (argument.vision_solutions.empty())
+      REPORT(VISION_INITIALIZATION_FAILED);
 
-    if (argument.imu_solutions.size() > 1) {
-      msg.failure_reason = InitializationFailure::AMBIGUOUS_IMU_MATCH;
-      msg.failure_reason_readable = "AMBIGUOUS_IMU_MATCH";
-      _failure_publisher.publish(msg);
-      return;
-    }
+    if (argument.imu_solutions.empty())
+      REPORT(NO_IMU_MATCH_CANDIDATE);
+
+    if (argument.imu_solutions.size() > 1)
+      REPORT(AMBIGUOUS_IMU_MATCH);
 
     auto const& imu_solution = argument.imu_solutions.front();
     auto const& vision_solution =
       argument.vision_solutions.at(imu_solution.vision_solution_index);
 
-    if (!vision_solution.acceptable) {
-      msg.failure_reason = InitializationFailure::UNACCEPTABLE_VISION_SOLUTION;
-      msg.failure_reason_readable = "UNACCEPTABLE_VISION_SOLUTION";
-      _failure_publisher.publish(msg);
-      return;
-    }
+    if (!vision_solution.acceptable)
+      REPORT(UNACCEPTABLE_VISION_SOLUTION);
 
-    if (!imu_solution.acceptable) {
-      msg.failure_reason = InitializationFailure::UNACCEPTABLE_IMU_SOLUTION;
-      msg.failure_reason_readable = "UNACCEPTABLE_IMU_SOLUTION";
-      _failure_publisher.publish(msg);
-      return;
-    }
+    if (!imu_solution.acceptable)
+      REPORT(UNACCEPTABLE_IMU_SOLUTION);
 
-    msg.failure_reason = InitializationFailure::UNKNOWN;
-    msg.failure_reason_readable = "UNKNOWN";
-    _failure_publisher.publish(msg);
+    REPORT(UNKNOWN);
   }
 
   void InitializerTelemetryRos::onSuccess(OnSuccess const& success) {
