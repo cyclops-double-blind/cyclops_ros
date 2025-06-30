@@ -21,7 +21,7 @@
 
 class CyclopsRosFrontendContext {
 private:
-  std::shared_ptr<cyclops_ros::cyclops_ros_frontend_config_t const> _config;
+  std::shared_ptr<cyclops_ros::CyclopsFrontendConfig const> _config;
   std::unique_ptr<cyclops_ros::CyclopsKltFeatureTracker> _tracker;
   std::unique_ptr<cyclops_ros::CyclopsFeatureTrackUpdateThrottle>
     _track_update_throttle;
@@ -114,7 +114,7 @@ private:
 
 public:
   CyclopsRosFrontendContext(
-    std::shared_ptr<cyclops_ros::cyclops_ros_frontend_config_t const> config,
+    std::shared_ptr<cyclops_ros::CyclopsFrontendConfig const> config,
     std::unique_ptr<cyclops_ros::CyclopsKltFeatureTracker> tracker,
     std::unique_ptr<cyclops_ros::CyclopsFeatureTrackUpdateThrottle>
       track_update_throttle,
@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
   }
   cv::setNumThreads(0);
 
-  std::shared_ptr config = cyclops_ros::read_config(pnode);
+  std::shared_ptr config = cyclops_ros::CyclopsFrontendConfig::Parse(pnode);
   if (config == nullptr) {
     ROS_ERROR_NAMED(
       "cyclops_ros",

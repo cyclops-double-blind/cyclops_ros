@@ -11,9 +11,9 @@ namespace cyclops_ros {
   using std::map;
   using std::vector;
 
-  static std::tuple<vector<feature_id_t>, vector<cv::Point2f>, vector<int>>
-  flatten(map<feature_id_t, feature_track_t> const& tracks) {
-    vector<feature_id_t> flatten_ids;
+  static std::tuple<vector<FeatureId>, vector<cv::Point2f>, vector<int>>
+  flatten(map<FeatureId, FeatureTrack> const& tracks) {
+    vector<FeatureId> flatten_ids;
     flatten_ids.reserve(tracks.size());
 
     vector<cv::Point2f> flatten_features;
@@ -38,7 +38,7 @@ namespace cyclops_ros {
     v.resize(j);
   }
 
-  static cv::Mat make_camera_matrix(camera_config_t const& config) {
+  static cv::Mat makeCameraMatrix(CameraConfig const& config) {
     // clang-format off
     return (cv::Mat_<float>(3, 3) <<
       config.intrinsic.fx,  +0., config.intrinsic.cx,
@@ -48,7 +48,7 @@ namespace cyclops_ros {
     // clang-format on
   }
 
-  static cv::Mat make_distortion_coeffs(camera_config_t const& config) {
+  static cv::Mat makeDistortionCoeffs(CameraConfig const& config) {
     // clang-format off
     return (cv::Mat_<float>(1, 4) <<
       config.distortion.k1,
@@ -61,7 +61,7 @@ namespace cyclops_ros {
 
   enum class DerivativeDirection { X, Y };
 
-  static cv::Mat compute_normalized_derivative(
+  static cv::Mat evaluateNormalizedDerivative(
     cv::Mat const& image, DerivativeDirection direction) {
     cv::Mat diff_raw;
     switch (direction) {
@@ -83,7 +83,7 @@ namespace cyclops_ros {
     return diff_blur;
   }
 
-  static cv::Rect determine_feature_roi(
+  static cv::Rect evaluateFeatureRoI(
     int imwidth, int imheight, cv::Point2f const& f0, cv::Size const& patch) {
     auto x0 = static_cast<int>(std::floor(f0.x));
     auto y0 = static_cast<int>(std::floor(f0.y));
@@ -99,7 +99,7 @@ namespace cyclops_ros {
     return cv::Rect(x0, y0, width, height);
   }
 
-  static cv::Mat estimate_patch_hessian(
+  static cv::Mat estimatePatchHessian(
     cv::Mat const& image_dx, cv::Mat const& image_dy,
     cv::Point2f const& feature_center, cv::Size const& patch) {
     ROS_ASSERT(image_dx.cols == image_dy.cols);
@@ -107,7 +107,7 @@ namespace cyclops_ros {
 
     auto f0 =
       feature_center - 0.5f * cv::Point2f(patch.width - 1, patch.height - 1);
-    auto roi = determine_feature_roi(image_dx.cols, image_dx.rows, f0, patch);
+    auto roi = evaluateFeatureRoI(image_dx.cols, image_dx.rows, f0, patch);
 
     cv::Mat H = cv::Mat::zeros(2, 2, CV_32F);
     for (int y = roi.y; y < roi.y + roi.height; y++) {
@@ -144,8 +144,8 @@ namespace cyclops_ros {
   vector<uint8_t> CyclopsKltFeatureTracker::testEpipolarGeometry(
     vector<cv::Point2f> const& prev_features,
     vector<cv::Point2f> const& curr_features) {
-    auto K = make_camera_matrix(_config->camera_config);
-    auto D = make_distortion_coeffs(_config->camera_config);
+    auto K = makeCameraMatrix(_config->camera_config);
+    auto D = makeDistortionCoeffs(_config->camera_config);
 
     if (curr_features.size() >= 8) {
       vector<cv::Point2f> undistorted_prev;
@@ -212,7 +212,7 @@ namespace cyclops_ros {
       for (auto const& feature : new_features) {
         _last_feature_id++;
         _tracks.emplace(
-          _last_feature_id, feature_track_t {0, {feature, cv::Mat()}});
+          _last_feature_id, FeatureTrack {0, {feature, cv::Mat()}});
       }
     }
   }
@@ -260,8 +260,8 @@ namespace cyclops_ros {
       reduce(prev_features, epipolar_validity);
       reduce(curr_features, epipolar_validity);
 
-      auto dx = compute_normalized_derivative(image, DerivativeDirection::X);
-      auto dy = compute_normalized_derivative(image, DerivativeDirection::Y);
+      auto dx = evaluateNormalizedDerivative(image, DerivativeDirection::X);
+      auto dy = evaluateNormalizedDerivative(image, DerivativeDirection::Y);
 
       _tracks.clear();
       for (int i = 0; i < int(curr_features.size()); i++) {
@@ -270,11 +270,10 @@ namespace cyclops_ros {
 
         auto const& feature = curr_features.at(i);
         auto const& sigma = _config->tracker_config.image_noise_stddev;
-        cv::Mat hessian = estimate_patch_hessian(dx, dy, feature, patch_size);
+        cv::Mat hessian = estimatePatchHessian(dx, dy, feature, patch_size);
         cv::Mat information = hessian / 2 / sigma / sigma;
 
-        _tracks.emplace(
-          id, feature_track_t {count + 1, {feature, information}});
+        _tracks.emplace(id, FeatureTrack {count + 1, {feature, information}});
       }
     }
 
@@ -286,9 +285,8 @@ namespace cyclops_ros {
     findNewTracks(_prev_image);
   }
 
-  map<feature_id_t, feature_point_t> CyclopsKltFeatureTracker::features()
-    const {
-    vector<feature_id_t> ids;
+  map<FeatureId, FeaturePoint> CyclopsKltFeatureTracker::features() const {
+    vector<FeatureId> ids;
     ids.reserve(_tracks.size());
 
     vector<cv::Point2f> features;
@@ -307,13 +305,13 @@ namespace cyclops_ros {
     if (ids.empty())
       return {};
 
-    auto K = make_camera_matrix(_config->camera_config);
-    auto D = make_distortion_coeffs(_config->camera_config);
+    auto K = makeCameraMatrix(_config->camera_config);
+    auto D = makeDistortionCoeffs(_config->camera_config);
 
     vector<cv::Point2f> undistorted_features;
     cv::undistortPoints(features, undistorted_features, K, D);
 
-    map<feature_id_t, feature_point_t> result;
+    map<FeatureId, FeaturePoint> result;
     for (size_t i = 0; i < undistorted_features.size(); i++) {
       auto const& u = undistorted_features.at(i);
       auto u_mat = cv::Mat(u);
@@ -337,7 +335,7 @@ namespace cyclops_ros {
 
       result.emplace(
         ids.at(i),
-        feature_point_t {
+        FeaturePoint {
           .point = u,
           .information = J.t() * informations.at(i) * J,
         });
@@ -345,13 +343,13 @@ namespace cyclops_ros {
     return result;
   }
 
-  std::map<feature_id_t, feature_track_t> const&
-  CyclopsKltFeatureTracker::tracks() const {
+  std::map<FeatureId, FeatureTrack> const& CyclopsKltFeatureTracker::tracks()
+    const {
     return _tracks;
   }
 
   CyclopsKltFeatureTracker::CyclopsKltFeatureTracker(
-    std::shared_ptr<cyclops_ros_frontend_config_t const> config)
+    std::shared_ptr<CyclopsFrontendConfig const> config)
       : _config(std::move(config)) {
   }
 

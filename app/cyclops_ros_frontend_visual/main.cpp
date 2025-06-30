@@ -16,14 +16,13 @@
 using Eigen::Matrix2f;
 using Eigen::Vector2f;
 
-struct ellipse_t {
+struct Ellipse {
   double angle;
   double major_axis_size;
   double minor_axis_size;
 };
 
-static std::optional<ellipse_t> make_error_ellipse(
-  Matrix2f const& information) {
+static std::optional<Ellipse> makeErrorEllipse(Matrix2f const& information) {
   Eigen::SelfAdjointEigenSolver<Matrix2f> eigensolver(information.inverse());
   if (eigensolver.info() != Eigen::Success)
     return std::nullopt;
@@ -35,18 +34,18 @@ static std::optional<ellipse_t> make_error_ellipse(
   auto lambda_max = lambda.y();
   auto lambda_min = lambda.x();
 
-  return ellipse_t {
+  return Ellipse {
     .angle = (theta < 0 ? theta + 2 * M_PI : theta) * 180 / M_PI,
     .major_axis_size = std::sqrt(std::min(lambda_min, 1e4f)),
     .minor_axis_size = std::sqrt(std::min(lambda_max, 1e4f)),
   };
 }
 
-static double negative_exp_stable(double z) {
+static double safeExp(double z) {
   return std::exp(-std::max(0.0, std::min(20.0, z)));
 }
 
-static cv::Scalar determine_ellipse_color(int track_age) {
+static cv::Scalar determineEllipseColor(int track_age) {
   auto target_age = 90.0;
 
   auto s = 1. - std::clamp(track_age / target_age, 0., 1.);
@@ -56,7 +55,7 @@ static cv::Scalar determine_ellipse_color(int track_age) {
   return color_start * s + color_end * (1 - s);
 }
 
-static std::optional<cv::Mat> make_tracking_image(
+static std::optional<cv::Mat> makeTrackingImage(
   sensor_msgs::Image const& image, cyclops_ros::RawFeatureSet const& tracks) {
   auto cv_image = cv_bridge::toCvCopy(image, "rgb8");
   if (cv_image == nullptr)
@@ -77,12 +76,12 @@ static std::optional<cv::Mat> make_tracking_image(
     cv::rectangle(result, rect_corner_lo, rect_corner_hi, rect_color, 1);
 
     if (!feature.weight.empty()) {
-      auto maybe_ellipse = make_error_ellipse(information);
+      auto maybe_ellipse = makeErrorEllipse(information);
       if (!maybe_ellipse)
         continue;
 
       auto [angle, major_axis, minor_axis] = *maybe_ellipse;
-      auto ellipse_color = determine_ellipse_color(feature.age);
+      auto ellipse_color = determineEllipseColor(feature.age);
 
       auto major_axis_clamp = std::max(2., major_axis);
       auto minor_axis_clamp = std::max(2., minor_axis);
@@ -112,7 +111,7 @@ void CyclopsRosFrontendVisualizerContext::handleMessage(
   sensor_msgs::ImageConstPtr const& image,
   cyclops_ros::RawFeatureSetConstPtr const& tracks) {
   auto tic = std::chrono::steady_clock::now();
-  auto tracking_image = make_tracking_image(*image, *tracks);
+  auto tracking_image = makeTrackingImage(*image, *tracks);
   if (!tracking_image.has_value()) {
     ROS_ERROR("Failed to convert sensor_msgs::Image to cv::Mat.");
     ROS_ERROR("Hint: check your image formatting.");
@@ -135,7 +134,7 @@ void CyclopsRosFrontendVisualizerContext::handleMessage(
     "Tracking visualizer callback time: " << dt2.count() << " [s]");
 }
 
-static auto change_log_level(ros::NodeHandle& pnode) {
+static auto changeLogLevel(ros::NodeHandle& pnode) {
   auto log_level = std::min(
     pnode.param<int>("log_level", 1), (int)(ros::console::levels::Warn));
   ROS_INFO("Changing the log level to %d", log_level);
@@ -156,7 +155,7 @@ int main(int argc, char** argv) {
 
   cv::setNumThreads(0);
 
-  if (!change_log_level(pnode))
+  if (!changeLogLevel(pnode))
     return -1;
   auto image_topic_name = pnode.param<std::string>("image_topic_name", "image");
   auto context = CyclopsRosFrontendVisualizerContext(pnode);

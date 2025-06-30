@@ -5,7 +5,7 @@
 
 namespace cyclops_ros {
   CyclopsFeatureTrackUpdateThrottle::CyclopsFeatureTrackUpdateThrottle(
-    std::shared_ptr<cyclops_ros_frontend_config_t const> config)
+    std::shared_ptr<CyclopsFrontendConfig const> config)
       : _config(config) {
   }
 

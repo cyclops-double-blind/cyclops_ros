@@ -8,15 +8,15 @@ namespace ros {
 }
 
 namespace cyclops_ros {
-  struct camera_config_t {
-    struct camera_intrinsic_t {
+  struct CameraConfig {
+    struct CameraIntrinsic {
       double fx;
       double fy;
       double cx;
       double cy;
     };
 
-    struct camera_distortion_t {
+    struct CameraDistortion {
       double k1;
       double k2;
       double p1;
@@ -25,11 +25,11 @@ namespace cyclops_ros {
 
     int width;
     int height;
-    camera_intrinsic_t intrinsic;
-    camera_distortion_t distortion;
+    CameraIntrinsic intrinsic;
+    CameraDistortion distortion;
   };
 
-  struct tracker_config_t {
+  struct TrackerConfig {
     int max_features;
     int feature_min_distance;
 
@@ -44,13 +44,13 @@ namespace cyclops_ros {
     double track_update_fps_filter_window_size;
   };
 
-  struct cyclops_ros_frontend_config_t {
+  struct CyclopsFrontendConfig {
     std::string image_topic_name;
 
-    camera_config_t camera_config;
-    tracker_config_t tracker_config;
-  };
+    CameraConfig camera_config;
+    TrackerConfig tracker_config;
 
-  std::unique_ptr<cyclops_ros_frontend_config_t const> read_config(
-    ros::NodeHandle& node_handle);
+    static std::unique_ptr<CyclopsFrontendConfig const> Parse(
+      ros::NodeHandle& node_handle);
+  };
 }  // namespace cyclops_ros

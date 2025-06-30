@@ -7,26 +7,26 @@
 #include <vector>
 
 namespace cyclops_ros {
-  struct cyclops_ros_frontend_config_t;
+  struct CyclopsFrontendConfig;
 
-  using feature_id_t = int;
+  using FeatureId = int;
 
-  struct feature_point_t {
+  struct FeaturePoint {
     cv::Point2f point;
     cv::Mat information;
   };
 
-  struct feature_track_t {
+  struct FeatureTrack {
     int track_count;
-    feature_point_t feature;
+    FeaturePoint feature;
   };
 
   class CyclopsKltFeatureTracker {
   private:
-    std::shared_ptr<cyclops_ros_frontend_config_t const> _config;
+    std::shared_ptr<CyclopsFrontendConfig const> _config;
 
     int _last_feature_id = 0;
-    std::map<feature_id_t, feature_track_t> _tracks;
+    std::map<FeatureId, FeatureTrack> _tracks;
 
     cv::Mat _mask;
     cv::Mat _prev_image;
@@ -41,13 +41,13 @@ namespace cyclops_ros {
 
   public:
     explicit CyclopsKltFeatureTracker(
-      std::shared_ptr<cyclops_ros_frontend_config_t const> config);
+      std::shared_ptr<CyclopsFrontendConfig const> config);
     ~CyclopsKltFeatureTracker();
 
     void followTracks(cv::Mat const& image);
     void updateTracks();
 
-    std::map<feature_id_t, feature_point_t> features() const;
-    std::map<feature_id_t, feature_track_t> const& tracks() const;
+    std::map<FeatureId, FeaturePoint> features() const;
+    std::map<FeatureId, FeatureTrack> const& tracks() const;
   };
 }  // namespace cyclops_ros

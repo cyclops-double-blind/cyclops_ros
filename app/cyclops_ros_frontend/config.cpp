@@ -7,32 +7,31 @@
 
 namespace cyclops_ros {
   template <typename value_t>
-  static value_t read_as(ros::NodeHandle& pnode, std::string name) {
+  static value_t readAs(ros::NodeHandle& pnode, std::string name) {
     value_t value;
     if (!pnode.getParam(name, value))
       throw std::domain_error("Unspecified parameter: " + name);
     return value;
   }
 
-  static std::optional<camera_config_t> parse_camera_config(
-    ros::NodeHandle& pnode) {
+  static std::optional<CameraConfig> parseCameraConfig(ros::NodeHandle& pnode) {
     try {
-      return camera_config_t {
-        .width = read_as<int>(pnode, "camera/width"),
-        .height = read_as<int>(pnode, "camera/height"),
+      return CameraConfig {
+        .width = readAs<int>(pnode, "camera/width"),
+        .height = readAs<int>(pnode, "camera/height"),
         .intrinsic =
           {
-            .fx = read_as<double>(pnode, "camera/intrinsic/fx"),
-            .fy = read_as<double>(pnode, "camera/intrinsic/fy"),
-            .cx = read_as<double>(pnode, "camera/intrinsic/cx"),
-            .cy = read_as<double>(pnode, "camera/intrinsic/cy"),
+            .fx = readAs<double>(pnode, "camera/intrinsic/fx"),
+            .fy = readAs<double>(pnode, "camera/intrinsic/fy"),
+            .cx = readAs<double>(pnode, "camera/intrinsic/cx"),
+            .cy = readAs<double>(pnode, "camera/intrinsic/cy"),
           },
         .distortion =
           {
-            .k1 = read_as<double>(pnode, "camera/distortion/k1"),
-            .k2 = read_as<double>(pnode, "camera/distortion/k2"),
-            .p1 = read_as<double>(pnode, "camera/distortion/p1"),
-            .p2 = read_as<double>(pnode, "camera/distortion/p2"),
+            .k1 = readAs<double>(pnode, "camera/distortion/k1"),
+            .k2 = readAs<double>(pnode, "camera/distortion/k2"),
+            .p1 = readAs<double>(pnode, "camera/distortion/p1"),
+            .p2 = readAs<double>(pnode, "camera/distortion/p2"),
           },
       };
     } catch (std::domain_error const& err) {
@@ -41,8 +40,8 @@ namespace cyclops_ros {
     }
   }
 
-  static tracker_config_t parse_tracker_config(ros::NodeHandle& pnode) {
-    auto config = tracker_config_t {
+  static TrackerConfig parseTrackerConfig(ros::NodeHandle& pnode) {
+    auto config = TrackerConfig {
       .max_features = pnode.param<int>("max_features", 200),
       .feature_min_distance = pnode.param<int>("feature_min_distance", 30),
       .tracking_patch_size = pnode.param<int>("tracking_patch_size", 21),
@@ -62,20 +61,19 @@ namespace cyclops_ros {
     return config;
   }
 
-  std::unique_ptr<cyclops_ros_frontend_config_t const> read_config(
+  std::unique_ptr<CyclopsFrontendConfig const> CyclopsFrontendConfig::Parse(
     ros::NodeHandle& pnode) {
-    auto maybe_camera_config = parse_camera_config(pnode);
+    auto maybe_camera_config = parseCameraConfig(pnode);
     if (!maybe_camera_config.has_value()) {
       ROS_ERROR("Failed to parse camera configuration. aborting...");
       return nullptr;
     }
 
-    return std::make_unique<cyclops_ros_frontend_config_t>(
-      cyclops_ros_frontend_config_t {
-        .image_topic_name =
-          pnode.param<std::string>("image_topic_name", "camera/image"),
-        .camera_config = *maybe_camera_config,
-        .tracker_config = parse_tracker_config(pnode),
-      });
+    return std::make_unique<CyclopsFrontendConfig>(CyclopsFrontendConfig {
+      .image_topic_name =
+        pnode.param<std::string>("image_topic_name", "camera/image"),
+      .camera_config = *maybe_camera_config,
+      .tracker_config = parseTrackerConfig(pnode),
+    });
   }
 }  // namespace cyclops_ros
