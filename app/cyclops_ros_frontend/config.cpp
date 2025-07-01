@@ -14,7 +14,47 @@ namespace cyclops_ros {
     return value;
   }
 
+  static auto parseCameraDistortion(ros::NodeHandle& pnode)
+    -> std::optional<decltype(CameraConfig::distortion)> {
+    auto reportError = [](auto reason) {
+      ROS_ERROR_STREAM(
+        "Failed to read camera distortion parameter: " << reason);
+    };
+
+    try {
+      auto model = readAs<std::string>(pnode, "camera/distortion/model");
+      if (model == "fisheye") {
+        return CameraConfig::CameraDistortionFisheye {
+          readAs<double>(pnode, "camera/distortion/k1"),
+          readAs<double>(pnode, "camera/distortion/k2"),
+          readAs<double>(pnode, "camera/distortion/k3"),
+          readAs<double>(pnode, "camera/distortion/k4"),
+        };
+      }
+
+      if (model == "pinhole") {
+        return CameraConfig::CameraDistortionPinhole {
+          .k1 = readAs<double>(pnode, "camera/distortion/k1"),
+          .k2 = readAs<double>(pnode, "camera/distortion/k2"),
+          .p1 = readAs<double>(pnode, "camera/distortion/p1"),
+          .p2 = readAs<double>(pnode, "camera/distortion/p2"),
+        };
+      }
+
+      reportError("Unknown distortion model");
+      ROS_ERROR_STREAM("Allowed: {fisheye, pinhole}, provided: " << model);
+      return std::nullopt;
+    } catch (std::domain_error const& err) {
+      reportError(err.what());
+      return std::nullopt;
+    }
+  }
+
   static std::optional<CameraConfig> parseCameraConfig(ros::NodeHandle& pnode) {
+    auto distortion = parseCameraDistortion(pnode);
+    if (!distortion.has_value())
+      return std::nullopt;
+
     try {
       return CameraConfig {
         .width = readAs<int>(pnode, "camera/width"),
@@ -26,13 +66,7 @@ namespace cyclops_ros {
             .cx = readAs<double>(pnode, "camera/intrinsic/cx"),
             .cy = readAs<double>(pnode, "camera/intrinsic/cy"),
           },
-        .distortion =
-          {
-            .k1 = readAs<double>(pnode, "camera/distortion/k1"),
-            .k2 = readAs<double>(pnode, "camera/distortion/k2"),
-            .p1 = readAs<double>(pnode, "camera/distortion/p1"),
-            .p2 = readAs<double>(pnode, "camera/distortion/p2"),
-          },
+        .distortion = *distortion,
       };
     } catch (std::domain_error const& err) {
       ROS_ERROR_STREAM("Failed to read camera configuration: " << err.what());

@@ -8,6 +8,7 @@
 
 namespace cyclops_ros {
   struct CyclopsFrontendConfig;
+  struct DistortionModel;
 
   using FeatureId = int;
 
@@ -24,6 +25,7 @@ namespace cyclops_ros {
   class CyclopsKltFeatureTracker {
   private:
     std::shared_ptr<CyclopsFrontendConfig const> _config;
+    std::unique_ptr<DistortionModel> _distortion_model;
 
     int _last_feature_id = 0;
     std::map<FeatureId, FeatureTrack> _tracks;
@@ -40,8 +42,9 @@ namespace cyclops_ros {
       std::vector<cv::Point2f> const& curr_features);
 
   public:
-    explicit CyclopsKltFeatureTracker(
-      std::shared_ptr<CyclopsFrontendConfig const> config);
+    CyclopsKltFeatureTracker(
+      std::shared_ptr<CyclopsFrontendConfig const> config,
+      std::unique_ptr<DistortionModel> distortion_model);
     ~CyclopsKltFeatureTracker();
 
     void followTracks(cv::Mat const& image);

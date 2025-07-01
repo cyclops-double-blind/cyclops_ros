@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <string>
+#include <variant>
 
 namespace ros {
   struct NodeHandle;
@@ -16,17 +18,22 @@ namespace cyclops_ros {
       double cy;
     };
 
-    struct CameraDistortion {
+    struct CameraDistortionPinhole {
       double k1;
       double k2;
       double p1;
       double p2;
     };
 
+    struct CameraDistortionFisheye {
+      std::array<double, 4> coefficients;
+    };
+
     int width;
     int height;
+
     CameraIntrinsic intrinsic;
-    CameraDistortion distortion;
+    std::variant<CameraDistortionPinhole, CameraDistortionFisheye> distortion;
   };
 
   struct TrackerConfig {

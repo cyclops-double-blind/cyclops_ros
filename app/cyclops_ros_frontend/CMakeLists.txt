@@ -12,6 +12,8 @@ target_sources(
   PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/config.cpp
   ${CMAKE_CURRENT_LIST_DIR}/config.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/distortion.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/distortion.hpp
   ${CMAKE_CURRENT_LIST_DIR}/main.cpp
   ${CMAKE_CURRENT_LIST_DIR}/throttle.cpp
   ${CMAKE_CURRENT_LIST_DIR}/throttle.hpp

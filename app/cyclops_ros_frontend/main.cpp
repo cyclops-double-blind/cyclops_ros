@@ -1,4 +1,5 @@
 #include "cyclops_ros_frontend/config.hpp"
+#include "cyclops_ros_frontend/distortion.hpp"
 #include "cyclops_ros_frontend/tracker.hpp"
 #include "cyclops_ros_frontend/throttle.hpp"
 
@@ -138,7 +139,7 @@ public:
     if (cv_image == nullptr) {
       ROS_ERROR_NAMED(
         "cyclops_ros",
-        "failed to convert image to cv_image; check your image formatting.");
+        "Failed to convert image to cv_image; check your image formatting.");
       return;
     }
     _tracker->followTracks(cv_image->image);
@@ -183,15 +184,15 @@ int main(int argc, char** argv) {
   if (config == nullptr) {
     ROS_ERROR_NAMED(
       "cyclops_ros",
-      "failed to read frontend configuration parameter. aborting...");
+      "Failed to read frontend configuration parameter. aborting...");
     ROS_ERROR_NAMED(
       "cyclops_ros",
-      "note: set parameter `skip_config_check = true` to ignore this check.");
+      "Note: set parameter `skip_config_check = true` to ignore this check.");
     return -1;
   }
 
-  auto tracker =
-    std::make_unique<cyclops_ros::CyclopsKltFeatureTracker>(config);
+  auto tracker = std::make_unique<cyclops_ros::CyclopsKltFeatureTracker>(
+    config, cyclops_ros::DistortionModel::Create(config));
   auto throttle =
     std::make_unique<cyclops_ros::CyclopsFeatureTrackUpdateThrottle>(config);
 

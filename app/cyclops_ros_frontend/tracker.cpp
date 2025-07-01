@@ -1,5 +1,6 @@
 #include "cyclops_ros_frontend/tracker.hpp"
 #include "cyclops_ros_frontend/config.hpp"
+#include "cyclops_ros_frontend/distortion.hpp"
 
 #include <Eigen/Dense>
 #include <opencv2/core/eigen.hpp>
@@ -36,27 +37,6 @@ namespace cyclops_ros {
       if (validity[i])
         v[j++] = v[i];
     v.resize(j);
-  }
-
-  static cv::Mat makeCameraMatrix(CameraConfig const& config) {
-    // clang-format off
-    return (cv::Mat_<float>(3, 3) <<
-      config.intrinsic.fx,  +0., config.intrinsic.cx,
-      +0.,  config.intrinsic.fy, config.intrinsic.cy,
-      +0.,                  +0.,                  +1.
-    );
-    // clang-format on
-  }
-
-  static cv::Mat makeDistortionCoeffs(CameraConfig const& config) {
-    // clang-format off
-    return (cv::Mat_<float>(1, 4) <<
-      config.distortion.k1,
-      config.distortion.k2,
-      config.distortion.p1,
-      config.distortion.p2
-    );
-    // clang-format on
   }
 
   enum class DerivativeDirection { X, Y };
@@ -144,15 +124,9 @@ namespace cyclops_ros {
   vector<uint8_t> CyclopsKltFeatureTracker::testEpipolarGeometry(
     vector<cv::Point2f> const& prev_features,
     vector<cv::Point2f> const& curr_features) {
-    auto K = makeCameraMatrix(_config->camera_config);
-    auto D = makeDistortionCoeffs(_config->camera_config);
-
     if (curr_features.size() >= 8) {
-      vector<cv::Point2f> undistorted_prev;
-      cv::undistortPoints(prev_features, undistorted_prev, K, D);
-
-      vector<cv::Point2f> undistorted_curr;
-      cv::undistortPoints(curr_features, undistorted_curr, K, D);
+      auto undistorted_prev = _distortion_model->undistort(prev_features);
+      auto undistorted_curr = _distortion_model->undistort(curr_features);
 
       vector<uint8_t> status;
       cv::findFundamentalMat(
@@ -248,12 +222,26 @@ namespace cyclops_ros {
           status[i] = false;
       }
 
+      auto success_rate = [](auto const& status) {
+        int n = 0;
+        for (auto flag : status) {
+          if (flag)
+            n++;
+        }
+        return static_cast<double>(n) / status.size();
+      };
+
+      ROS_INFO_STREAM("KLT tracking success rate: " << success_rate(status));
+
       reduce(feature_ids, status);
       reduce(track_counts, status);
       reduce(prev_features, status);
       reduce(curr_features, status);
       auto epipolar_validity =
         testEpipolarGeometry(prev_features, curr_features);
+
+      ROS_INFO_STREAM(
+        "Epipolar test pass rate: " << success_rate(epipolar_validity));
 
       reduce(feature_ids, epipolar_validity);
       reduce(track_counts, epipolar_validity);
@@ -305,33 +293,12 @@ namespace cyclops_ros {
     if (ids.empty())
       return {};
 
-    auto K = makeCameraMatrix(_config->camera_config);
-    auto D = makeDistortionCoeffs(_config->camera_config);
-
-    vector<cv::Point2f> undistorted_features;
-    cv::undistortPoints(features, undistorted_features, K, D);
+    auto undistorted_features = _distortion_model->undistort(features);
 
     map<FeatureId, FeaturePoint> result;
     for (size_t i = 0; i < undistorted_features.size(); i++) {
       auto const& u = undistorted_features.at(i);
-      auto u_mat = cv::Mat(u);
-
-      auto const& k1 = _config->camera_config.distortion.k1;
-      auto const& k2 = _config->camera_config.distortion.k2;
-      auto const& p1 = _config->camera_config.distortion.p1;
-      auto const& p2 = _config->camera_config.distortion.p2;
-      auto p = cv::Mat(cv::Point2f(p2, p1));
-
-      auto u2 = u.dot(u);
-      auto rho = 1 + k1 * u2 + k2 * u2 * u2;
-
-      // clang-format off
-      cv::Mat J_distortion =
-        (2 * k1 + 4 * k2 * u2) * u_mat * u_mat.t() +
-        (rho + 2 * u_mat.dot(p)) * cv::Mat::eye(2, 2, CV_32F) +
-        2 * (p * u_mat.t() + u_mat * p.t());
-      // clang-format on
-      cv::Mat J = K(cv::Range(0, 2), cv::Range(0, 2)) * J_distortion;
+      auto J = _distortion_model->evaluateJacobian(u);
 
       result.emplace(
         ids.at(i),
@@ -349,8 +316,10 @@ namespace cyclops_ros {
   }
 
   CyclopsKltFeatureTracker::CyclopsKltFeatureTracker(
-    std::shared_ptr<CyclopsFrontendConfig const> config)
-      : _config(std::move(config)) {
+    std::shared_ptr<CyclopsFrontendConfig const> config,
+    std::unique_ptr<DistortionModel> distortion_model)
+      : _config(std::move(config)),
+        _distortion_model(std::move(distortion_model)) {
   }
 
   CyclopsKltFeatureTracker::~CyclopsKltFeatureTracker() = default;
