@@ -18,7 +18,7 @@ namespace cyclops {
     auto log_path = pnode.param<std::string>("log_path", "");
 
     ROS_INFO("Changing cyclops log level to %d", log_level);
-    ROS_ERROR_STREAM("logger path: " << log_path);
+    ROS_INFO_STREAM("logger path: " << log_path);
 
     if (log_path.empty()) {
       ::cyclops::initLogger(log_level);
