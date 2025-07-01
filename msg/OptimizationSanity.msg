@@ -5,4 +5,7 @@ float64 significant_probability
 
 float64 landmark_accept_rate
 float64 landmark_outlier_rate
+float64 landmark_uninitialized_rate
+float64 landmark_information_failure_rate
+float64 landmark_depth_threshold_failure_rate
 int64 landmark_observation_count

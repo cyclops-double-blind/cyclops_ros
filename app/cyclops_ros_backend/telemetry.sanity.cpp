@@ -25,6 +25,12 @@ namespace cyclops {
     msg.landmark_accept_rate = statistics.landmark_accept_rate;
     msg.landmark_outlier_rate =
       statistics.landmark_chi_square_test_failure_rate;
+    msg.landmark_uninitialized_rate = statistics.landmark_uninitialized_rate;
+    msg.landmark_information_failure_rate =
+      statistics.landmark_information_failure_rate;
+    msg.landmark_depth_threshold_failure_rate =
+      statistics.landmark_depth_threshold_failure_rate;
+
     msg.landmark_observation_count = statistics.landmark_observations;
     _sanity_statistics_publisher.publish(msg);
   }
