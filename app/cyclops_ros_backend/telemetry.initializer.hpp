@@ -6,23 +6,23 @@
 namespace cyclops {
   class InitializerTelemetryRos: public InitializerTelemetry {
   private:
-    ros::Publisher _vision_failure_publisher;
-    ros::Publisher _vision_solution_sanity_publisher;
-    ros::Publisher _vision_success_publisher;
+    ros::Publisher _vision_failure;
+    ros::Publisher _vision_sanity;
+    ros::Publisher _vision_success;
 
-    ros::Publisher _best_two_view_selection_publisher;
-    ros::Publisher _two_view_motion_hypothesis_publisher;
-    ros::Publisher _two_view_solver_success_publisher;
+    ros::Publisher _twoview_selection;
+    ros::Publisher _twoview_hypothesis;
+    ros::Publisher _twoview_success;
 
-    ros::Publisher _attempt_publisher;
-    ros::Publisher _ambiguity_publisher;
-    ros::Publisher _accept_publisher;
-    ros::Publisher _failure_publisher;
-    ros::Publisher _success_publisher;
-    ros::Publisher _success_detail_publisher;
+    ros::Publisher _imu_attempt;
+    ros::Publisher _imu_ambiguity;
+    ros::Publisher _imu_accept;
+    ros::Publisher _imu_solution_reject;
+    ros::Publisher _imu_candidate_reject;
 
-    ros::Publisher _solution_reject_publisher;
-    ros::Publisher _candidate_reject_publisher;
+    ros::Publisher _failure;
+    ros::Publisher _success;
+    ros::Publisher _success_detail;
 
   public:
     InitializerTelemetryRos(ros::NodeHandle& pnode);

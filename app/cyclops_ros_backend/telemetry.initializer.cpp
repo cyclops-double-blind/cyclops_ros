@@ -22,24 +22,23 @@
 #include <std_msgs/Time.h>
 
 namespace cyclops {
-  using BestTwoViewSelectionMessage = cyclops_ros::BestTwoViewSelection;
-  using cyclops_ros::IMUMatchAccept;
-  using cyclops_ros::IMUMatchAmbiguity;
-  using cyclops_ros::IMUMatchAttempt;
-  using cyclops_ros::IMUMatchReject;
-  using cyclops_ros::IMUMatchSolutionPoint;
-  using cyclops_ros::IMUMatchSolutionUncertainty;
-  using cyclops_ros::InitializationFailure;
-  using cyclops_ros::InitializationFailureIMUDigest;
-  using cyclops_ros::InitializationFailureVisionDigest;
-  using cyclops_ros::InitializationSuccess;
-  using TwoViewGeometryCandidateMessage = cyclops_ros::TwoViewGeometryCandidate;
-  using TwoViewMotionHypothesisMessage = cyclops_ros::TwoViewMotionHypothesis;
-  using TwoViewSolverSuccessMessage = cyclops_ros::TwoViewSolverSuccess;
-  using cyclops_ros::VisionFailure;
-  using cyclops_ros::VisionSolutionCandidatesSanity;
-  using cyclops_ros::VisionSolutionSanity;
-  using cyclops_ros::VisionSuccess;
+  using MImuAccept = cyclops_ros::IMUMatchAccept;
+  using MImuAmbiguity = cyclops_ros::IMUMatchAmbiguity;
+  using MImuAttempt = cyclops_ros::IMUMatchAttempt;
+  using MImuReject = cyclops_ros::IMUMatchReject;
+  using MImuSolutionPoint = cyclops_ros::IMUMatchSolutionPoint;
+  using MImuSolutionUncertainty = cyclops_ros::IMUMatchSolutionUncertainty;
+  using MInitFailure = cyclops_ros::InitializationFailure;
+  using MInitFailImuSummary = cyclops_ros::InitializationFailureIMUDigest;
+  using MInitFailVisionSummary = cyclops_ros::InitializationFailureVisionDigest;
+  using MInitSuccess = cyclops_ros::InitializationSuccess;
+  using MTwoViewSelection = cyclops_ros::BestTwoViewSelection;
+  using MTwoViewGeometry = cyclops_ros::TwoViewGeometryCandidate;
+  using MTwoViewHypothesis = cyclops_ros::TwoViewMotionHypothesis;
+  using MTwoViewSuccess = cyclops_ros::TwoViewSolverSuccess;
+  using MVisionFailure = cyclops_ros::VisionFailure;
+  using MVisionSanity = cyclops_ros::VisionSolutionCandidatesSanity;
+  using MVisionSuccess = cyclops_ros::VisionSuccess;
 
   template <typename vector3_msg_t = geometry_msgs::Vector3>
   static auto makeVector3Msg(Eigen::Vector3d const& v) {
@@ -73,14 +72,14 @@ namespace cyclops {
 
   void InitializerTelemetryRos::onVisionFailure(
     VisionBootstrapFailure const& failure) {
-    VisionFailure msg;
+    MVisionFailure msg;
     msg.frame_id = flatten<int64_t>(failure.frames);
 
-#define ASSIGN_FAILURE_REASON(name)        \
-  case name: {                             \
-    msg.reason_code = VisionFailure::name; \
-    msg.reason_readable = #name;           \
-    break;                                 \
+#define ASSIGN_FAILURE_REASON(name)         \
+  case name: {                              \
+    msg.reason_code = MVisionFailure::name; \
+    msg.reason_readable = #name;            \
+    break;                                  \
   }
     switch (failure.reason) {
       ASSIGN_FAILURE_REASON(NOT_ENOUGH_CONNECTED_IMAGE_FRAMES)
@@ -93,21 +92,21 @@ namespace cyclops {
 #undef ASSIGN_FAILURE_REASON
     ROS_INFO_STREAM("Vision bootstrap failed. Reason: " << msg.reason_readable);
 
-    _vision_failure_publisher.publish(msg);
+    _vision_failure.publish(msg);
   }
 
   void InitializerTelemetryRos::onBestTwoViewSelection(
     BestTwoViewSelection const& selection) {
-    BestTwoViewSelectionMessage msg;
+    MTwoViewSelection msg;
     msg.frames = flatten<int64_t>(selection.frames);
     msg.frame_id_1 = selection.frame_id_1;
     msg.frame_id_2 = selection.frame_id_2;
-    _best_two_view_selection_publisher.publish(msg);
+    _twoview_selection.publish(msg);
   }
 
   static auto asTelemetryMessage(
     InitializerTelemetry::TwoViewGeometry const& candidate) {
-    TwoViewGeometryCandidateMessage msg;
+    MTwoViewGeometry msg;
 
 #define COPY_FIELD(field) (msg.field = candidate.field)
     COPY_FIELD(acceptable);
@@ -122,19 +121,19 @@ namespace cyclops {
 
   void InitializerTelemetryRos::onTwoViewMotionHypothesis(
     TwoViewMotionHypothesis const& hypothesis) {
-    TwoViewMotionHypothesisMessage msg;
+    MTwoViewHypothesis msg;
     msg.frames = flatten<int64_t>(hypothesis.frames);
     msg.frame_id_1 = hypothesis.frame_id_1;
     msg.frame_id_2 = hypothesis.frame_id_2;
 
     for (auto const& candidate : hypothesis.candidates)
       msg.candidates.emplace_back(asTelemetryMessage(candidate));
-    _two_view_motion_hypothesis_publisher.publish(msg);
+    _twoview_hypothesis.publish(msg);
   }
 
   void InitializerTelemetryRos::onTwoViewSolverSuccess(
     TwoViewSolverSuccess const& success) {
-    TwoViewSolverSuccessMessage msg;
+    MTwoViewSuccess msg;
     msg.frames = flatten<int64_t>(success.frames);
 
 #define COPY_FIELD(field) (msg.field = success.field)
@@ -147,12 +146,12 @@ namespace cyclops {
 
     for (auto const& candidate : success.candidates)
       msg.candidates.emplace_back(asTelemetryMessage(candidate));
-    _two_view_solver_success_publisher.publish(msg);
+    _twoview_success.publish(msg);
   }
 
   void InitializerTelemetryRos::onBundleAdjustmentSanity(
     BundleAdjustmentCandidatesSanity const& sanity) {
-    VisionSolutionCandidatesSanity msg;
+    MVisionSanity msg;
     msg.frame_id = flatten<int64_t>(sanity.frames);
 
     for (auto const& candidate_sanity : sanity.candidates_sanity) {
@@ -164,13 +163,12 @@ namespace cyclops {
         candidate_sanity.final_cost_significant_probability;
     }
 
-    _vision_solution_sanity_publisher.publish(msg);
+    _vision_sanity.publish(msg);
   }
 
   template <typename vision_success_t>
-  static VisionSuccess makeVisionSuccessMessage(
-    vision_success_t const& success) {
-    auto result = VisionSuccess();
+  static auto makeVisionSuccessMessage(vision_success_t const& success) {
+    auto result = MVisionSuccess();
     for (auto const& [frame_id, x] : success.camera_motions) {
       result.frame_id.emplace_back(frame_id);
       result.camera_motion.emplace_back(makePoseMsg(x));
@@ -189,7 +187,7 @@ namespace cyclops {
 
   void InitializerTelemetryRos::onBundleAdjustmentSuccess(
     BundleAdjustmentSolution const& solution) {
-    _vision_success_publisher.publish(makeVisionSuccessMessage(solution));
+    _vision_success.publish(makeVisionSuccessMessage(solution));
   }
 
   static std_msgs::Float64MultiArray makeScaleCostLandscapeMessage(
@@ -219,18 +217,17 @@ namespace cyclops {
     ImuMatchAttempt const& argument) {
     ROS_INFO("IMU match attempt");
 
-    auto msg = boost::make_shared<IMUMatchAttempt>();
+    auto msg = boost::make_shared<MImuAttempt>();
     msg->degrees_of_freedom = argument.degrees_of_freedom;
     msg->frame_id = flatten<int64_t>(argument.frames);
     msg->cost_landscape = makeScaleCostLandscapeMessage(argument.landscape);
     msg->local_minima = makeScaleCostLandscapeMessage(argument.minima);
-    _attempt_publisher.publish(msg);
+    _imu_attempt.publish(msg);
   }
 
   template <typename solution_point_t>
-  static IMUMatchSolutionPoint makeSolutionPointMessage(
-    solution_point_t const& solution) {
-    auto result = IMUMatchSolutionPoint();
+  static auto makeSolutionPointMessage(solution_point_t const& solution) {
+    auto result = MImuSolutionPoint();
     result.scale = solution.scale;
     result.cost = solution.cost;
 
@@ -252,9 +249,9 @@ namespace cyclops {
   }
 
   template <typename solution_uncertainty_t>
-  static IMUMatchSolutionUncertainty makeSolutionUncertaintyMessage(
+  static auto makeSolutionUncertaintyMessage(
     solution_uncertainty_t const& uncertainty) {
-    IMUMatchSolutionUncertainty result;
+    MImuSolutionUncertainty result;
     result.valid = true;
 
     result.final_cost_significant_probability =
@@ -271,9 +268,9 @@ namespace cyclops {
   }
 
   template <typename solution_uncertainty_t>
-  static IMUMatchSolutionUncertainty makeSolutionUncertaintyMessage(
+  static auto makeSolutionUncertaintyMessage(
     std::optional<solution_uncertainty_t> const& maybe_uncertainty) {
-    IMUMatchSolutionUncertainty result;
+    MImuSolutionUncertainty result;
     if (!maybe_uncertainty.has_value()) {
       result.valid = false;
       return result;
@@ -283,7 +280,7 @@ namespace cyclops {
 
   void InitializerTelemetryRos::onImuMatchAmbiguity(
     ImuMatchAmbiguity const& argument) {
-    auto msg = boost::make_shared<IMUMatchAmbiguity>();
+    auto msg = boost::make_shared<MImuAmbiguity>();
 
     for (auto const& solution : argument.solutions)
       msg->solution.emplace_back(makeSolutionPointMessage(solution));
@@ -293,7 +290,7 @@ namespace cyclops {
         makeSolutionUncertaintyMessage(uncertainty));
     }
 
-    _ambiguity_publisher.publish(msg);
+    _imu_ambiguity.publish(msg);
 
     ROS_INFO_STREAM("IMU match ambiguity. Solutions:");
     for (auto const& solution : argument.solutions)
@@ -323,46 +320,46 @@ namespace cyclops {
   static auto makeRejectReasonMessage(reject_reason_t reason) {
     switch (reason) {
     case reject_reason_t::UNCERTAINTY_EVALUATION_FAILED:
-      return IMUMatchReject::REJECT_REASON_UNCERTAINTY_EVALUATION_FAILED;
+      return MImuReject::REJECT_REASON_UNCERTAINTY_EVALUATION_FAILED;
     case reject_reason_t::COST_PROBABILITY_INSIGNIFICANT:
-      return IMUMatchReject::REJECT_REASON_COST_PROBABILITY_INSIGNIFICANT;
+      return MImuReject::REJECT_REASON_COST_PROBABILITY_INSIGNIFICANT;
     case reject_reason_t::UNDERINFORMATIVE_PARAMETER:
-      return IMUMatchReject::REJECT_REASON_PARAMETER_UNDERINFORMATIVE;
+      return MImuReject::REJECT_REASON_PARAMETER_UNDERINFORMATIVE;
     default:
-      return IMUMatchReject::REJECT_REASON_UNSPECIFIED;
+      return MImuReject::REJECT_REASON_UNSPECIFIED;
     }
-    return IMUMatchReject::REJECT_REASON_UNSPECIFIED;
+    return MImuReject::REJECT_REASON_UNSPECIFIED;
   }
 
   void InitializerTelemetryRos::onImuMatchAccept(
     ImuMatchAccept const& argument) {
-    IMUMatchAccept msg;
+    MImuAccept msg;
     msg.solution = makeSolutionPointMessage(argument.solution);
     msg.uncertainty = makeSolutionUncertaintyMessage(argument.uncertainty);
 
-    _accept_publisher.publish(msg);
+    _imu_accept.publish(msg);
   }
 
   void InitializerTelemetryRos::onImuMatchReject(
     ImuMatchReject const& argument) {
-    IMUMatchReject msg;
+    MImuReject msg;
     msg.solution = makeSolutionPointMessage(argument.solution);
     msg.uncertainty = makeSolutionUncertaintyMessage(argument.uncertainty);
     msg.reject_reason = makeRejectReasonMessage(argument.reason);
 
-    _solution_reject_publisher.publish(msg);
+    _imu_solution_reject.publish(msg);
 
     ROS_INFO_STREAM("IMU match rejected: " << rejectToString(argument.reason));
   }
 
   void InitializerTelemetryRos::onImuMatchCandidateReject(
     ImuMatchReject const& argument) {
-    IMUMatchReject msg;
+    MImuReject msg;
     msg.solution = makeSolutionPointMessage(argument.solution);
     msg.uncertainty = makeSolutionUncertaintyMessage(argument.uncertainty);
     msg.reject_reason = makeRejectReasonMessage(argument.reason);
 
-    _candidate_reject_publisher.publish(msg);
+    _imu_candidate_reject.publish(msg);
 
     ROS_INFO_STREAM(
       "IMU match candidate rejected: " << rejectToString(argument.reason));
@@ -371,10 +368,10 @@ namespace cyclops {
   }
 
   void InitializerTelemetryRos::onFailure(OnFailure const& argument) {
-    InitializationFailure msg;
+    MInitFailure msg;
 
     for (auto const& vision_digest : argument.vision_solutions) {
-      InitializationFailureVisionDigest digest;
+      MInitFailVisionSummary digest;
       digest.acceptable = vision_digest.acceptable;
       for (auto frame_id : vision_digest.keyframes)
         digest.keyframes.push_back(frame_id);
@@ -382,7 +379,7 @@ namespace cyclops {
     }
 
     for (auto const& imu_digest : argument.imu_solutions) {
-      InitializationFailureIMUDigest digest;
+      MInitFailImuSummary digest;
       digest.acceptable = imu_digest.acceptable;
       digest.vision_solution_index = imu_digest.vision_solution_index;
       digest.scale = imu_digest.scale;
@@ -394,10 +391,10 @@ namespace cyclops {
 
 #define REPORT(REASON)                                                 \
   {                                                                    \
-    msg.failure_reason = InitializationFailure::REASON;                \
+    msg.failure_reason = MInitFailure::REASON;                         \
     msg.failure_reason_readable = #REASON;                             \
     ROS_INFO_STREAM("IMU initialization failed. Reason: " << #REASON); \
-    _failure_publisher.publish(msg);                                   \
+    _failure.publish(msg);                                             \
     return;                                                            \
   }
 
@@ -427,9 +424,9 @@ namespace cyclops {
     auto timestamp = success.initial_motion_frame_timestamp;
     auto success_msg = boost::make_shared<std_msgs::Time>();
     success_msg->data.fromSec(timestamp);
-    _success_publisher.publish(success_msg);
+    _success.publish(success_msg);
 
-    auto detail_msg = boost::make_shared<InitializationSuccess>();
+    auto detail_msg = boost::make_shared<MInitSuccess>();
     detail_msg->initial_keyframe_id = success.initial_motion_frame_id;
     detail_msg->initial_keyframe_timestamp.fromSec(timestamp);
     detail_msg->scale = success.scale;
@@ -445,39 +442,40 @@ namespace cyclops {
     }
     for (auto const& [_, camera_pose] : success.sfm_camera_pose)
       detail_msg->sfm_camera_pose.emplace_back(makePoseMsg(camera_pose));
-    _success_detail_publisher.publish(detail_msg);
+    _success_detail.publish(detail_msg);
   }
 
-  InitializerTelemetryRos::InitializerTelemetryRos(ros::NodeHandle& pnode)
-      : _vision_failure_publisher(
-          pnode.advertise<VisionFailure>("init/vision/failure", 16)),
-        _vision_success_publisher(
-          pnode.advertise<VisionSuccess>("init/vision/success", 16)),
-        _vision_solution_sanity_publisher(
-          pnode.advertise<VisionSolutionCandidatesSanity>(
-            "init/vision/sanity", 16)),
-        _best_two_view_selection_publisher(
-          pnode.advertise<BestTwoViewSelectionMessage>(
-            "init/vision/two_view/selection", 16)),
-        _two_view_motion_hypothesis_publisher(
-          pnode.advertise<TwoViewMotionHypothesisMessage>(
-            "init/vision/two_view/hypothesis", 16)),
-        _two_view_solver_success_publisher(
-          pnode.advertise<TwoViewSolverSuccessMessage>(
-            "init/vision/two_view/success", 16)),
-        _attempt_publisher(
-          pnode.advertise<IMUMatchAttempt>("init/attempt", 16)),
-        _ambiguity_publisher(
-          pnode.advertise<IMUMatchAmbiguity>("init/ambiguity", 16)),
-        _accept_publisher(pnode.advertise<IMUMatchAccept>("init/accept", 16)),
-        _failure_publisher(
-          pnode.advertise<InitializationFailure>("init/failure", 16)),
-        _success_publisher(pnode.advertise<std_msgs::Time>("init/success", 16)),
-        _success_detail_publisher(
-          pnode.advertise<InitializationSuccess>("init/success/detail", 16)),
-        _solution_reject_publisher(
-          pnode.advertise<IMUMatchReject>("init/solution_reject", 16)),
-        _candidate_reject_publisher(
-          pnode.advertise<IMUMatchReject>("init/candidate_reject", 16)) {
+  class AdvertisementHelper {
+  private:
+    ros::NodeHandle& _pnode;
+
+  public:
+    explicit AdvertisementHelper(ros::NodeHandle& pnode): _pnode(pnode) {
+    }
+
+    template <typename message_t>
+    ros::Publisher make(std::string topic) {
+      return _pnode.advertise<message_t>(topic, 16);
+    }
+  };
+
+  InitializerTelemetryRos::InitializerTelemetryRos(ros::NodeHandle& pnode) {
+    auto _ = AdvertisementHelper(pnode);
+    _vision_failure = _.make<MVisionFailure>("init/vision/failure");
+    _vision_success = _.make<MVisionSuccess>("init/vision/success");
+    _vision_sanity = _.make<MVisionSanity>("init/vision/sanity");
+    _twoview_selection = _.make<MTwoViewSelection>("init/twoview/selection");
+    _twoview_hypothesis = _.make<MTwoViewHypothesis>("init/twoview/hypothesis");
+    _twoview_success = _.make<MTwoViewSuccess>("init/twoview/success");
+
+    _imu_attempt = _.make<MImuAttempt>("init/imu/attempt");
+    _imu_ambiguity = _.make<MImuAmbiguity>("init/imu/ambiguity");
+    _imu_accept = _.make<MImuAccept>("init/imu/accept");
+    _imu_solution_reject = _.make<MImuReject>("init/imu/solution_reject");
+    _imu_candidate_reject = _.make<MImuReject>("init/imu/candidate_reject");
+
+    _failure = _.make<MInitFailure>("init/failure");
+    _success = _.make<std_msgs::Time>("init/success");
+    _success_detail = _.make<MInitSuccess>("init/success/detail");
   }
 }  // namespace cyclops
