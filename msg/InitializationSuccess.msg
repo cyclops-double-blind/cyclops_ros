@@ -1,3 +1,5 @@
+int32 vision_solution_index
+
 time initial_keyframe_timestamp
 int64 initial_keyframe_id
 

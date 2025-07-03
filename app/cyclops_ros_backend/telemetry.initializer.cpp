@@ -427,6 +427,7 @@ namespace cyclops {
     _success.publish(success_msg);
 
     auto detail_msg = boost::make_shared<MInitSuccess>();
+    detail_msg->vision_solution_index = success.vision_solution_index;
     detail_msg->initial_keyframe_id = success.initial_motion_frame_id;
     detail_msg->initial_keyframe_timestamp.fromSec(timestamp);
     detail_msg->scale = success.scale;
