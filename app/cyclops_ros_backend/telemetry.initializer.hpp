@@ -10,6 +10,10 @@ namespace cyclops {
     ros::Publisher _vision_solution_sanity_publisher;
     ros::Publisher _vision_success_publisher;
 
+    ros::Publisher _best_two_view_selection_publisher;
+    ros::Publisher _two_view_motion_hypothesis_publisher;
+    ros::Publisher _two_view_solver_success_publisher;
+
     ros::Publisher _attempt_publisher;
     ros::Publisher _ambiguity_publisher;
     ros::Publisher _accept_publisher;
@@ -24,6 +28,11 @@ namespace cyclops {
     InitializerTelemetryRos(ros::NodeHandle& pnode);
 
     void onVisionFailure(VisionBootstrapFailure const& failure) override;
+    void onBestTwoViewSelection(BestTwoViewSelection const& selection) override;
+    void onTwoViewMotionHypothesis(
+      TwoViewMotionHypothesis const& hypothesis) override;
+    void onTwoViewSolverSuccess(TwoViewSolverSuccess const& success) override;
+
     void onBundleAdjustmentSanity(
       BundleAdjustmentCandidatesSanity const& sanity) override;
     void onBundleAdjustmentSuccess(

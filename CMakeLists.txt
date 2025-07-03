@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   FILES
+  BestTwoViewSelection.msg
   IMUMatchAccept.msg
   IMUMatchAmbiguity.msg
   IMUMatchAttempt.msg
@@ -25,6 +26,9 @@ add_message_files(
   OptimizationSanity.msg
   RawFeature.msg
   RawFeatureSet.msg
+  TwoViewGeometryCandidate.msg
+  TwoViewMotionHypothesis.msg
+  TwoViewSolverSuccess.msg
   VisionFailure.msg
   VisionSolutionCandidatesSanity.msg
   VisionSolutionSanity.msg

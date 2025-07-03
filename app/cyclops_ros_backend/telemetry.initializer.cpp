@@ -1,5 +1,6 @@
 #include "cyclops_ros_backend/telemetry.initializer.hpp"
 
+#include <cyclops_ros/BestTwoViewSelection.h>
 #include <cyclops_ros/IMUMatchAccept.h>
 #include <cyclops_ros/IMUMatchAmbiguity.h>
 #include <cyclops_ros/IMUMatchAttempt.h>
@@ -8,6 +9,9 @@
 #include <cyclops_ros/IMUMatchSolutionUncertainty.h>
 #include <cyclops_ros/InitializationFailure.h>
 #include <cyclops_ros/InitializationSuccess.h>
+#include <cyclops_ros/TwoViewGeometryCandidate.h>
+#include <cyclops_ros/TwoViewMotionHypothesis.h>
+#include <cyclops_ros/TwoViewSolverSuccess.h>
 #include <cyclops_ros/VisionFailure.h>
 #include <cyclops_ros/VisionSolutionCandidatesSanity.h>
 #include <cyclops_ros/VisionSuccess.h>
@@ -18,6 +22,7 @@
 #include <std_msgs/Time.h>
 
 namespace cyclops {
+  using BestTwoViewSelectionMessage = cyclops_ros::BestTwoViewSelection;
   using cyclops_ros::IMUMatchAccept;
   using cyclops_ros::IMUMatchAmbiguity;
   using cyclops_ros::IMUMatchAttempt;
@@ -28,6 +33,9 @@ namespace cyclops {
   using cyclops_ros::InitializationFailureIMUDigest;
   using cyclops_ros::InitializationFailureVisionDigest;
   using cyclops_ros::InitializationSuccess;
+  using TwoViewGeometryCandidateMessage = cyclops_ros::TwoViewGeometryCandidate;
+  using TwoViewMotionHypothesisMessage = cyclops_ros::TwoViewMotionHypothesis;
+  using TwoViewSolverSuccessMessage = cyclops_ros::TwoViewSolverSuccess;
   using cyclops_ros::VisionFailure;
   using cyclops_ros::VisionSolutionCandidatesSanity;
   using cyclops_ros::VisionSolutionSanity;
@@ -58,11 +66,15 @@ namespace cyclops {
     return msg;
   }
 
+  template <typename value_t, typename range_t>
+  static auto flatten(range_t const& range) {
+    return std::vector<value_t>(range.begin(), range.end());
+  }
+
   void InitializerTelemetryRos::onVisionFailure(
     VisionBootstrapFailure const& failure) {
     VisionFailure msg;
-    msg.frame_id =
-      std::vector<int64_t>(failure.frames.begin(), failure.frames.end());
+    msg.frame_id = flatten<int64_t>(failure.frames);
 
 #define ASSIGN_FAILURE_REASON(name)        \
   case name: {                             \
@@ -84,11 +96,64 @@ namespace cyclops {
     _vision_failure_publisher.publish(msg);
   }
 
+  void InitializerTelemetryRos::onBestTwoViewSelection(
+    BestTwoViewSelection const& selection) {
+    BestTwoViewSelectionMessage msg;
+    msg.frames = flatten<int64_t>(selection.frames);
+    msg.frame_id_1 = selection.frame_id_1;
+    msg.frame_id_2 = selection.frame_id_2;
+    _best_two_view_selection_publisher.publish(msg);
+  }
+
+  static auto asTelemetryMessage(
+    InitializerTelemetry::TwoViewGeometry const& candidate) {
+    TwoViewGeometryCandidateMessage msg;
+
+#define COPY_FIELD(field) (msg.field = candidate.field)
+    COPY_FIELD(acceptable);
+    COPY_FIELD(rotation_prior_test_passed);
+    COPY_FIELD(triangulation_test_passed);
+    COPY_FIELD(rotation_prior_p_value);
+    COPY_FIELD(triangulation_success_count);
+#undef COPY_FIELD
+    msg.motion = makePoseMsg(candidate.motion);
+    return msg;
+  }
+
+  void InitializerTelemetryRos::onTwoViewMotionHypothesis(
+    TwoViewMotionHypothesis const& hypothesis) {
+    TwoViewMotionHypothesisMessage msg;
+    msg.frames = flatten<int64_t>(hypothesis.frames);
+    msg.frame_id_1 = hypothesis.frame_id_1;
+    msg.frame_id_2 = hypothesis.frame_id_2;
+
+    for (auto const& candidate : hypothesis.candidates)
+      msg.candidates.emplace_back(asTelemetryMessage(candidate));
+    _two_view_motion_hypothesis_publisher.publish(msg);
+  }
+
+  void InitializerTelemetryRos::onTwoViewSolverSuccess(
+    TwoViewSolverSuccess const& success) {
+    TwoViewSolverSuccessMessage msg;
+    msg.frames = flatten<int64_t>(success.frames);
+
+#define COPY_FIELD(field) (msg.field = success.field)
+    COPY_FIELD(initial_selected_model);
+    COPY_FIELD(final_selected_model);
+    COPY_FIELD(landmarks_count);
+    COPY_FIELD(homography_expected_inliers);
+    COPY_FIELD(epipolar_expected_inliers);
+#undef COPY_FIELD
+
+    for (auto const& candidate : success.candidates)
+      msg.candidates.emplace_back(asTelemetryMessage(candidate));
+    _two_view_solver_success_publisher.publish(msg);
+  }
+
   void InitializerTelemetryRos::onBundleAdjustmentSanity(
     BundleAdjustmentCandidatesSanity const& sanity) {
     VisionSolutionCandidatesSanity msg;
-    msg.frame_id =
-      std::vector<int64_t>(sanity.frames.begin(), sanity.frames.end());
+    msg.frame_id = flatten<int64_t>(sanity.frames);
 
     for (auto const& candidate_sanity : sanity.candidates_sanity) {
       msg.candidates_sanity.emplace_back();
@@ -156,8 +221,7 @@ namespace cyclops {
 
     auto msg = boost::make_shared<IMUMatchAttempt>();
     msg->degrees_of_freedom = argument.degrees_of_freedom;
-    msg->frame_id =
-      std::vector<int64_t>(argument.frames.begin(), argument.frames.end());
+    msg->frame_id = flatten<int64_t>(argument.frames);
     msg->cost_landscape = makeScaleCostLandscapeMessage(argument.landscape);
     msg->local_minima = makeScaleCostLandscapeMessage(argument.minima);
     _attempt_publisher.publish(msg);
@@ -392,6 +456,15 @@ namespace cyclops {
         _vision_solution_sanity_publisher(
           pnode.advertise<VisionSolutionCandidatesSanity>(
             "init/vision/sanity", 16)),
+        _best_two_view_selection_publisher(
+          pnode.advertise<BestTwoViewSelectionMessage>(
+            "init/vision/two_view/selection", 16)),
+        _two_view_motion_hypothesis_publisher(
+          pnode.advertise<TwoViewMotionHypothesisMessage>(
+            "init/vision/two_view/hypothesis", 16)),
+        _two_view_solver_success_publisher(
+          pnode.advertise<TwoViewSolverSuccessMessage>(
+            "init/vision/two_view/success", 16)),
         _attempt_publisher(
           pnode.advertise<IMUMatchAttempt>("init/attempt", 16)),
         _ambiguity_publisher(

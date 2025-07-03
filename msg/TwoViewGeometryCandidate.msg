@@ -1,0 +1,8 @@
+bool acceptable
+bool rotation_prior_test_passed
+bool triangulation_test_passed
+
+float64 rotation_prior_p_value
+int32 triangulation_success_count
+
+geometry_msgs/Pose motion
