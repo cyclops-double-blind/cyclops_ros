@@ -401,6 +401,9 @@ namespace cyclops {
     if (argument.vision_solutions.empty())
       REPORT(VISION_INITIALIZATION_FAILED);
 
+    if (argument.vision_solutions.size() > 1)
+      REPORT(AMBIGUOUS_VISION_SOLUTION);
+
     if (argument.imu_solutions.empty())
       REPORT(NO_IMU_MATCH_CANDIDATE);
 
